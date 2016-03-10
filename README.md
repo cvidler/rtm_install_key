@@ -9,7 +9,9 @@ A restart is required for the new key to be used by the AMD.
 rtm_install_key.sh [-h] [-c _rtmconfigfile_] -k _privatekeyfile_
 
 -h Display usage help. Optional
+
 -c _rtmconfigfile_ Location of rtm.config if not the default. Optional
+
 -k _privatekeyfile_	PEM format private key to be installed. Required
 
 
@@ -35,7 +37,9 @@ If the key required conversion, the output will be a new key file in PEM format,
 key_convert.sh [-h] -k _privatekeyfile_
 
 -h Deplay usage help. Optional
+
 -k _privatekeyfile_ Private key to be validated/converted. Required
+
 
 ## Requirements
 
