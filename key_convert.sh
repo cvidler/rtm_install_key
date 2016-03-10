@@ -4,12 +4,41 @@
 #
 
 # config
-
+DEBUG=0
 
 # script below do not edit
 
+OPTS=0
+while getopts ":k:hd" OPT; do
+	case $OPT in
+		k)
+			KEYFILE=$OPTARG
+			OPTS=1
+			;;
+		h)
+			;;
+		d)
+			DEBUG=1
+			;;
+		\?)
+			echo "*** FATAL: Invalid argument -$OPTARG."
+			exit 1
+			;;
+		:)
+			echo "*** FATAL: argument -$OPTARG requires parameter."
+			exit 1
+			;;
+	esac
+done
+
+if [ $OPTS -eq 0 ]; then
+	echo "*** INFO: Usage: $0 [-h] -k keyfile"
+	exit 0
+fi
+
+
 # grab filename from parameter
-KEYFILE=${1:-foo}
+#KEYFILE=${1:-foo}
 
 # do some redimentary checks the file exists.
 if [ $KEYFILE == foo ]; then

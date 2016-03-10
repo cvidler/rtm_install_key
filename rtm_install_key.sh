@@ -5,17 +5,41 @@
 
 # Config
 RTMCONFIG=/usr/adlex/config/rtm.config
-
+DEBUG=0
 
 # Script below - do not edit
 set -e
 IFS='='
 
-#get key file name from parameters
-KEYFILE=${1:--foo}
-if [ $KEYFILE == -foo ]; then
-	echo -e "*** FATAL: No key file parameter passed."
-	exit
+OPTS=0
+while getopts ":dhc:k:" OPT; do
+	case $OPT in
+		c)
+			RTMCONFIG=$OPTARG
+			;;
+		k)
+			KEYFILE=$OPTARG
+			OPTS=1
+			;;
+		d)
+			DEBUG=1
+			;;
+		h)
+			;;
+		\?)
+			echo -e "*** FATAL: Invalid option -$OPTARG"
+			exit 1
+			;;
+		:)
+			echo -e "*** FATAL: Option -$OPTARG requires an argument"
+			exit 1
+			;;
+	esac
+done
+
+if [ $OPTS -eq 0 ]; then
+	echo -e "*** INFO: Usage $0 [-h] [-c rtmconfig ] -k keyfile"
+	exit 0
 fi
 
 
