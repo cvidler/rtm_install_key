@@ -7,6 +7,7 @@ A restart is required for the new key to be used by the AMD.
 
 ### Syntax
 [optional]	an optional parameter
+
 _value_		a required value for a parameter.
 
 
@@ -14,6 +15,7 @@ _value_		a required value for a parameter.
 Copy the scripts to your AMD server, make them executable by running:
 
 `chmod +x rtm_install_key.sh`
+
 `chmod +x key_convert.sh`
 
 
@@ -27,6 +29,7 @@ rtm_install_key.sh [-h] [-c _rtmconfigfile_] -k _privatekeyfile_
 -k _privatekeyfile_	PEM format private key to be installed. Required
 
 e.g.
+
 `./rtm_install_key.sh -k mysitekey.pem`
 
 
@@ -60,6 +63,7 @@ key_convert.sh [-h] -k _privatekeyfile_
 -k _privatekeyfile_ Private key to be validated/converted. Required
 
 e.g.
+
 `./key_convert.sh -k mysitekey.p12`
 
 
