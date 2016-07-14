@@ -61,6 +61,9 @@ KEYEXT=${KEYEXT##*.}
 #echo $KEYEXT
 
 case "$KEYEXT" in
+	key)
+		TYPE=pem
+		;;
 	pem)
 		TYPE=pem
 		;;
