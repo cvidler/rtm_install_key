@@ -116,7 +116,7 @@ fi
 
 # check if passed key file is readable
 if [ ! -r $KEYFILE ]; then
-	if [ ! $UNDEPLOY ]; then		#ignore if undeploy is set, don't need the file to exist in this case.
+	if [ ! $UNDEPLOY -eq 1 ]; then		#ignore if undeploy is set, don't need the file to exist in this case.
 		echo -e "*** FATAL Can't read key file: $KEYFILE"
 		exit 1
 	fi
@@ -211,6 +211,9 @@ if [ $RESTART -eq 1 ]; then
 		exit 1
 	fi
 fi
+
+echo -e "Current list of configured keys:"
+echo -e `cat $KEYLIST`
 
 exit 0
 

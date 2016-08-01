@@ -6,12 +6,20 @@
 #
 
 #script defaults
-DEPPATH=/tmp
-DEPSCRIPT=rtm_install_key.sh
-DEPUSER=root
-DEPPASS=greenmouse
-DEPEXEC=1
+
+#default build AMD credentials
+DEPUSER="root"
+DEPPASS="greenmouse"
+#specify a default ident file for your environment below
 IDENT=""
+
+#temp path on the AMD to copy files to
+DEPPATH="/tmp"
+#script to copy and run on the AMD
+DEPSCRIPT="rtm_install_key.sh"
+#default execute the deploy script on the AMD
+DEPEXEC=1
+#default restart rtm daemon
 RESTART=1
 
 
@@ -20,6 +28,14 @@ RESTART=1
 
 function debugecho {
 	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[2m***DEBUG: $@\e[0m"; fi
+}
+
+function fatalecho {
+	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[31m***FATAL: $@\e[0m"; exit 1; fi
+}
+
+function warningecho {
+	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[33m***WARNING: $@\e[0m"; fi
 }
 
 function setdebugecho {
@@ -33,6 +49,8 @@ function unsetdebugecho {
 
 
 #command line parameters
+#preset defaults
+UNDEPLOY=0
 OPTS=0
 while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 	case $OPT in
@@ -73,8 +91,7 @@ while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 				DEPPASS=""
 			else
 				OPTS=0
-				echo -e "\e[31m*** FATAL:\e[0m Identity file $OPTARG not present or inaccessible."
-				exit 1
+				fatalecho "Identity file $OPTARG not present or inaccessible."
 			fi
 			;;
 		x)
@@ -88,11 +105,11 @@ while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 			;;
 		\?)
 			OPTS=0 #show help
-			echo "*** FATAL: Invalid argument -$OPTARG."
+			warningecho "Invalid argument -$OPTARG."
 			;;
 		:)
 			OPTS=0 #show help
-			echo "*** FATAL: argument -$OPTARG requires parameter."
+			warningecho "argument -$OPTARG requires parameter."
 			;;
 	esac
 done
@@ -119,13 +136,12 @@ if [ "$AMDADDR" == "" ]; then OPTS=0; fi
 
 #check for required script file
 if [ ! -r $DEPSCRIPT ]; then
-	echo -e "\e[31m*** FATAL:\e[0m Required script '$DEPSCRIPT' not found or inaccessible."
-	exit 1
+	fatalecho "Required script '$DEPSCRIPT' not found or inaccessible."
 fi
 
 
 if [ $OPTS -eq 0 ]; then
-	echo -e "*** INFO: Usage: $0 [-h] [-E|-e] [-R|r] [-s hh:mm|+m|now] [-z] -a amdaddress|listfile -f privatekey [-u user] [-p password | -i identfile]"
+	echo -e "*** INFO: Usage: $0 [-h] [-R|r] [-z] -a amdaddress|listfile -f privatekey [-u user] [-p password | -i identfile]"
 	echo -e "-h 	This help"
 	echo -e "-a amdaddress|listfile "
 	echo -e "		address or if a file list one per line for AMDs to deploy to. Required."
@@ -148,9 +164,10 @@ fi
 
 #check if passed file is readable.
 if [ ! -r $DEPFILE ]; then
-	if [ $UNDEPLOY == 0 ]; then
-		echo -e "\e[31m*** FATAL:\e[0m Upgrade file $DEPFILE not present or inaccessible."
-		exit 1
+	if [ ! "$UNDEPLOY" == "1" ]; then
+		fatalecho "Deploy file $DEPFILE not present or inaccessible."
+	else
+		debugecho "Deploy file $DEPFILE not present or inaccessible."
 	fi
 fi
 
@@ -179,7 +196,7 @@ fi
 debugecho "Configuration:"
 debugecho "DEPUSER: '$DEPUSER', DEPPASS: '$DEPPASS', IDENT: '$IDENT', AMDADDR: '$AMDADDR', DEPSCRIPT: '$DEPSCRIPT' "
 debugecho "DEPPATH: '$DEPPATH', RESTART: '$RESTART', RESTARTSCHED: '$RESTARTSCHED', DEPEXEC: '$DEPEXEC' "
-debugecho "UNDEPLOY: '$UNDEPLOY', "
+debugecho "UNDEPLOY: '$UNDEPLOY', DEPFILE: '$DEPFILE'"
 debugecho "AMDLIST: '$AMDLIST' "
 
 #exit
@@ -187,13 +204,11 @@ debugecho "AMDLIST: '$AMDLIST' "
 #get dependencies for config
 SCP=`which scp`
 if [ $? -ne 0 ]; then
-	echo -e "\e[31m*** FATAL:\e[0m dependency 'scp' not found."
-	exit 1
+	fatalecho "Dependency 'scp' not found."
 fi
 SSH=`which ssh`
 if [ $? -ne 0 ]; then
-	echo -e "\e[31m*** FATAL:\e[0m dependency 'ssh' not found."
-	exit 1
+	fatalecho "Dependency 'ssh' not found."
 fi
 debugecho "SCP: '$SCP', SSH: '$SSH' "
 
@@ -209,8 +224,7 @@ else
 	# if user supplied password is required, need to use 'sshpass' to automatically pass it to both SCP and SSH.
 	SSHPASSE=`which sshpass`
 	if [ $? -ne 0 ]; then
-		echo -e "\e[31m*** FATAL:\e[0m dependency 'sshpass' not found."
-		exit 1
+		fatalecho "Dependency 'sshpass' not found."
 	fi
 	debugecho "SSHPASSE: $SSHPASSE"
 	SSHPASS=${DEPPASS}
@@ -237,7 +251,7 @@ while read line; do
 	echo -e "\e[34mdeploy_keys.sh\e[0m Deploying ${DEPFILE##*/} to ${AMDADDR}"
 
 	#build SCP command line
-	if [ $UNDEPLOY ]; then
+	if [ "$UNDEPLOY" == "1" ]; then
 		SCPCOMMAND="${DEPPASS}${SCP}${VERBOSE} -p${IDENT} $DEPSCRIPT ${DEPUSER}@${AMDADDR}:${DEPPATH}"
 	else
 		SCPCOMMAND="${DEPPASS}${SCP}${VERBOSE} -p${IDENT} $DEPSCRIPT ${DEPFILE} ${DEPUSER}@${AMDADDR}:${DEPPATH}"
@@ -262,7 +276,7 @@ while read line; do
 
 	#build SSH command line to run copied file
 	if [ "$DEPEXEC" == "1" ]; then
-		if [ $UNDEPLOY ]; then
+		if [ "$UNDEPLOY" == "1" ]; then
 			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s -u ${RESTART} -k ${DEPFILE##*/}"
 		else
 			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
