@@ -6,13 +6,15 @@
 # Config
 RTMCONFIG=/usr/adlex/config/rtm.config
 DEBUG=0
+RESTART=1
+RTMTYPE=rtm
 
 # Script below - do not edit
 set -e
 IFS='='
 
 OPTS=0
-while getopts ":dhc:k:" OPT; do
+while getopts ":dhc:k:rRsu" OPT; do
 	case $OPT in
 		c)
 			RTMCONFIG=$OPTARG
@@ -23,6 +25,19 @@ while getopts ":dhc:k:" OPT; do
 			;;
 		d)
 			DEBUG=1
+			;;
+		r)
+			RESTART=1
+			;;
+		R)
+			RESTART=0
+			;;
+		s)
+			SCRIPTED=1
+			;;
+		u)
+			UNDEPLOY=1
+			RESTART=0
 			;;
 		h)
 			;;
@@ -38,7 +53,13 @@ while getopts ":dhc:k:" OPT; do
 done
 
 if [ $OPTS -eq 0 ]; then
-	echo -e "*** INFO: Usage $0 [-h] [-c rtmconfig ] -k keyfile"
+	echo -e "*** INFO: Usage $0 [-h] [-c rtmconfig ] [-r|-R] [-u] -k keyfile"
+	echo -e "-h			This help"
+	echo -e "-r			Restart rtm daemon. Default."
+	echo -e "-R			DO NOT restart rtm daemon."
+	echo -e "-c			location of rtm.config file. Default: $RTMCONFIG"
+	echo -e "-u			Undeploy and delete key."
+	echo -e "-k keyfile	Private key to deploy. Required."
 	exit 0
 fi
 
@@ -46,7 +67,7 @@ fi
 # check if config file exists and is readable
 if [ ! -r $RTMCONFIG ]; then
 	echo -e "*** FATAL: Config file $RTMCONFIG not exists or not readable"
-	exit
+	exit 1
 fi
 
 
@@ -61,6 +82,16 @@ KEYLISTNAME=$KEYLIST
 KEYLIST=$KEYDIR$KEYLIST
 #echo $KEYLIST
 
+RTMTEST=`cat $RTMCONFIG | grep rtm.type`
+RTMTEST=${RTMTYPE##*=}
+#determine name of daemon
+if [ RTMTEST == rtmhs ]; then
+	RTMTYPE=rtmhs
+else
+	RTMTYPE=rtm
+fi
+echo -e "***DEBUG: RTMTYPE=$RTMTYPE"
+
 
 # check if locations exist and are writeable
 if [ ! -d $KEYDIR ]; then
@@ -70,7 +101,7 @@ fi
 
 if [ ! -w $KEYDIR ]; then
 	echo -e "*** FATAL Can't write to $KEYDIR"
-	exit
+	exit 1
 fi
 
 if [ ! -f $KEYLIST ]; then
@@ -80,29 +111,35 @@ fi
 
 if [ ! -w $KEYLIST ]; then
 	echo -e "*** FATAL Can't write to $KEYLIST"
-	exit
+	exit 1
 fi
 
 # check if passed key file is readable
 if [ ! -r $KEYFILE ]; then
-	echo -e "*** FATAL Can't read key file: $KEYFILE"
-	exit
+	if [ ! $UNDEPLOY ]; then		#ignore if undeploy is set, don't need the file to exist in this case.
+		echo -e "*** FATAL Can't read key file: $KEYFILE"
+		exit 1
+	fi
 fi
 
 
 # parse key file, rudimentary check to see if it's valid
 # use openssl check feature.
 # if the key file is encrypted, user will be prompted for the password to decrypt it to check it.
-echo -e "Checking validity of key file: $KEYFILE"
-echo -e "You may be prompted for the key password if it's encrypted."
-set +e
-openssl rsa -check -noout -in $KEYFILE
-RESULT=$?
-set -e
-#echo $RESULT
-if [ $RESULT -ne 0 ]; then
-	echo -e "*** FATAL Private key $KEYFILE not valid"
-	exit
+if [ ! $SCRIPTED -eq 1 ]; then
+	if [ ! $UNDEPLOY ]; then		#ignore if undeploy is set, don't need the file to exist in this case.
+		echo -e "Checking validity of key file: $KEYFILE"
+		echo -e "You may be prompted for the key password if it's encrypted."
+		set +e
+		openssl rsa -check -noout -in $KEYFILE
+		RESULT=$?
+		set -e
+		#echo $RESULT
+		if [ $RESULT -ne 0 ]; then
+			echo -e "*** FATAL Private key $KEYFILE not valid"
+			exit 1
+		fi
+	fi
 fi
 
 
@@ -110,9 +147,11 @@ fi
 BASENAME=`basename $KEYFILE`
 #echo $BASENAME
 if [ -f $KEYDIR$BASENAME ]; then
-	echo -e "*** FATAL key with existing name: $BASENAME found."
-	echo -e "Rename $KEYFILE and try again."
-	exit
+	if [ ! $UNDEPLOY ]; then		#ignore if undeploy is set, expect the file to exist in this case.
+		echo -e "*** FATAL key with existing name: $BASENAME found."
+		echo -e "Rename $KEYFILE and try again."
+		exit 1
+	fi
 fi
 
 
@@ -120,27 +159,58 @@ fi
 # rebuild keylist file to contain all of the keys in the keydir directory.
 
 
-# copy new key into keydir
-cp $KEYFILE $KEYDIR
-if [ $? -ne 0 ]; then
-	echo "*** FATAL: couldn't copy new key $KEYFILE into $KEYDIR"
-	exit
+if [ ! $UNDEPLOY ]; then
+	# copy new key into keydir
+	cp $KEYFILE $KEYDIR
+	if [ $? -ne 0 ]; then
+		echo "*** FATAL: couldn't copy new key $KEYFILE into $KEYDIR"
+		exit 1
+	fi
+
+	# set permissions
+	chmod 600 $KEYDIR$BASENAME
+	if [ $? -ne 0 ]; then
+		echo -e "*** WARNING: Couldn't set secure permissions on new key $KEYDIR$BASENAME."
+	fi
+else
+	shred -uf $KEYDIR$BASENAME
+	if [ $? -ne 0 ]; then
+		echo -e "*** FATAL: couldn't remove key $BASENAME"
+		exit 1
+	fi
 fi
 
-
-# set permissions
-chmod 600 $KEYDIR$BASENAME
-if [ $? -ne 0 ]; then
-	echo -e "*** WARNING: Couldn't set secure permissions on new key $KEYDIR$BASENAME."
-fi
-
-
-# update keylist
+#update keylist, populate with all key files in the keydir directory
 echo -n "" > $KEYLIST
 ls -1 $KEYDIR | grep -v $KEYLISTNAME | while read a; do
 	echo -e "file,$a" >> $KEYLIST
 done
 
-echo -e "Key $KEYFILE installed and $KEYLIST updated."
+if [ ! $UNDEPLOY ]; then
 
+	echo -e "Key $KEYFILE installed and $KEYLIST updated."
+
+	if [ $SCRIPTED -eq 1 ]; then
+		#clean up temporary copy of private key
+		shred -uf $KEYFILE
+		if [ $? -ne 0 ]; then
+			echo -e "*** WARNING: Couldn't remove temporary copy of private key: ${DEPPATH}${DEPFILE##*/}"
+		fi
+	fi
+else
+	echo -e "Key $KEYFILE removed and $KEYLIST updated."	
+	echo -e "Change takes effect at next $RTMTYPE daemon restart."
+fi
+
+
+if [ $RESTART -eq 1 ]; then
+	echo -e "Restarting rtm daemon $RTMTYPE."
+	sudo service $RTMTYPE restart
+	if [ $? -ne 0 ]; then
+		echo -e "*** WARNING: Couldn't restart daemon $RTMTYPE."
+		exit 1
+	fi
+fi
+
+exit 0
 
