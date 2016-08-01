@@ -2,38 +2,63 @@
 Script to remotely deploy (or undeploy) private key files to one or more AMDs
 
 ## Usage
-`deploy_key.sh [-h] [-R|-R] [-z -z] -a amdname|amdlist -u username [-p password|-i identfile -f privatekeyfile`
+`deploy_key.sh [-h] [-r|-R] [-z -z] -a amdname|amdlist -f privatekeyfile -u username [-p password|-i identfile]`
 
 Run directly on an AMD for local changes, or called automatically by `deploy_key.sh` script for remote usage.
 
 
 
+**Help**
+
 `-h` Display usage help. Optional.
+
+
+
+**Restart Control**
 
 `-r` Restart rtm daemon/service for key change to take effect. Default.
 
+or
+
 `-R` DO NOT restart rtm daemon/service.
 
-`-z -z` Remove and secure erase private key in `-k` parameter. Optional. Double -z required for safety.
+
+
+**AMD List**
 
 `-a amdname|amdlist` Deploy to _amdname_ (ip/fqdn) or to each AMD in a line by line list file _amdlist_.
 
+
+
+**Private Key**
+
 `-f privatekeyfile`	PEM format private key file to be deployed (or with -z undeployed). Required.
+
+
+
+**Undeploy Key**
+
+`-z -z` **Remove and secure erase private key** in `-k` parameter. Optional. 
+
+_Note:_ Double -z required for safety. This **permanently** erases the private key from the AMD/s.
+
+
+
+**Authentication**
 
 `-u username` Username to log onto AMD, requires root/sudo access to modify private keys.
 
 `-i identfile` SSH private key to autologin to AMD as _username_.
 
+or
+
 `-p password` Password for _username_.
 
-
-
-`-i` overrides `-p` as it is the more secure option.
-
+_Note:_ `-i` overrides `-p` as it is the more secure option.
 
 
 
-e.g.
+**Examples**
 
 `./deploy_key.sh -a 192.168.93.121 -k mysitekey.key`
 
@@ -43,9 +68,9 @@ Deploy mysitekey.key to AMD at 192.168.93.121, use default user/password combina
 
 Deploy mysitekey.key to all AMDs in amdlist.txt using root and a SSH identity (key) file.
 
-`./deploy_key.sh -z -z -a amdlist.txt -k remove.key`
+`./deploy_key.sh -z -z -a amdlist.txt -k removethis.key`
 
-Undeploy remove.key from all AMDs in the file amdlist.txt, list file is a simple text file one AMD (by ip of fqdn) per line.
+Undeploy removethis.key from all AMDs in the file amdlist.txt, list file is a simple text file one AMD (by ip of fqdn) per line.
 
 
 
@@ -53,7 +78,7 @@ Undeploy remove.key from all AMDs in the file amdlist.txt, list file is a simple
 
 * bash
 * ssh
-* sshpass
+* sshpass (only if the `-p password` option is used.)
 * core-utils
 
 
