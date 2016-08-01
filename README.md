@@ -1,3 +1,8 @@
+# deploy_key
+Script to remotely deploy (or undeploy) private key files to one or more AMDs
+
+
+
 # rtm_install_key
 Script to easily install new SSL keys on an Dynatrace DC RUM AMD
 
@@ -5,10 +10,12 @@ Takes a private key file, checks it for validity (correct format), and then adds
 A restart is required for the new key to be used by the AMD.
 
 
+
 ### Syntax
 [optional]	an optional parameter
 
 _value_		a required value for a parameter.
+
 
 
 ### Installation
@@ -19,19 +26,39 @@ Copy the scripts to your AMD server, make them executable by running:
 `chmod +x key_convert.sh`
 
 
+
+Installation NOT required if using `deploy_key.sh` script, it's handled automatically.
+
+
+
 ## Usage
-rtm_install_key.sh [-h] [-c _rtmconfigfile_] -k _privatekeyfile_
+`rtm_install_key.sh [-h] [-c _rtmconfigfile_] [-R|-R] [-z] -k _privatekeyfile_`
 
--h Display usage help. Optional
+Run directly on an AMD for local changes, or called automatically by `deploy_key.sh` script for remote usage.
 
--c _rtmconfigfile_ Location of rtm.config if not the default. Optional
 
--k _privatekeyfile_	PEM format private key to be installed. Required
+
+`-h` Display usage help. Optional.
+
+`-c _rtmconfigfile_` Location of rtm.config if not the default. Optional.
+
+`-r` Restart rtm daemon/service for key change to take effect. Default.
+
+`-R` DO NOT restart rtm daemon/service.
+
+`-z` Remove and secure erase private key in `-k` parameter. Optional.
+
+`-k _privatekeyfile_`	PEM format private key to be installed. Required.
+
+
 
 e.g.
 
 `./rtm_install_key.sh -k mysitekey.pem`
 
+or
+
+`./rtm_install_key.sh -z -k remove.key`
 
 
 
