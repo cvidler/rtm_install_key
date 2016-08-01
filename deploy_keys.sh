@@ -25,13 +25,16 @@ RESTART=1
 
 
 #script follows do not edit.
+set -e
 
 function debugecho {
-	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[2m***DEBUG: $@\e[0m"; fi
+	LVL=${2:-1}
+	if test $DEBUG -ge $LVL ; then echo -e "\e[2m***DEBUG[${LVL}]:\e[0m $1"; fi
+	#echo -e "\e[2m***DEBUG[${LVL}]:\e[0m $1"
 }
 
 function fatalecho {
-	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[31m***FATAL: $@\e[0m"; exit 1; fi
+	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[31m***FATAL: $@\e[0m" >&2; exit 1; fi
 }
 
 function warningecho {
@@ -59,7 +62,7 @@ while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 			OPTS=0	#show help
 			;;
 		d)
-			DEBUG=1
+			DEBUG=$((DEBUG + 1))
 			;;
 		f)
 			OPTS=1
@@ -175,7 +178,7 @@ if [ -r $AMDADDR ]; then
 		if [[ $line =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|[a-zA-Z0-9\.-]+|\[?[0-9a-fA-F:]+\]?)$ ]]; then		#rudimentary ip/fqdn/ipv6 test
 			AMDLIST="$AMDLIST$line\n"
 		else
-			debugecho "AMDLIST nonmatching line: ${line}"
+			debugecho "AMDLIST nonmatching line: ${line}", 2
 		fi
 	done < <(cat $AMDADDR)
 	AMDLIST=${AMDLIST%%\\n}		#remove trailing comma
@@ -206,7 +209,7 @@ debugecho "SCP: '$SCP', SSH: '$SSH' "
 
 
 #build configs
-if [ $DEBUG == 1 ]; then VERBOSE=" -v"; fi		#in debug mode add verbosity to SCP and SSH commands later on
+if [ $DEBUG -ge 2 ]; then VERBOSE=" -v"; fi		#in debug mode add verbosity to SCP and SSH commands later on
 
 #DEPPASS="$DEPPASS"
 if [ ! "$IDENT" == "" ]; then 
@@ -218,19 +221,21 @@ else
 	if [ $? -ne 0 ]; then
 		fatalecho "Dependency 'sshpass' not found."
 	fi
-	debugecho "SSHPASSE: $SSHPASSE"
+	debugecho "SSHPASSE: $SSHPASSE", 2
 	SSHPASS=${DEPPASS}
 	DEPPASS="${SSHPASSE} -e "
 	#debugecho "SSHPASS: $SSHPASS"
-	debugecho "DEPPASS: '$DEPPASS'"
+	debugecho "DEPPASS: '$DEPPASS'", 2
 fi
 #AMDADDR="@$AMDADDR"
 #DEPPATH=":$DEPPATH" 
 
-if [ $RESTART = 1 ]; then RESTART="-r"; else RESTART="-R"; fi
+if [[ $RESTART = 1 ]]; then RESTART="-r"; else RESTART="-R"; fi
+if [[ $DEBUG -ge 1 ]]; then DBG="-d "; else DBG=""; fi
 
 
 if [ ! -x $DEPSCRIPT ]; then chmod +x $DEPSCRIPT; debugecho "chmod +x to '$DEPSCRIPT'"; fi
+if [ $UNDEPLOY -eq 1 ]; then STS="Removed"; else STS="Deployed"; fi
 
 SUCCESS=""
 FAIL=""
@@ -269,18 +274,19 @@ while read line; do
 	#build SSH command line to run copied file
 	if [ "$DEPEXEC" == "1" ]; then
 		if [ "$UNDEPLOY" == "1" ]; then
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s -l -z ${RESTART} -k ${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l -z ${RESTART} -k ${DEPFILE##*/}"
 		else
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
 		fi
 		debugecho "SSH command: $SSHCOMMAND"
 
 		#run SSH command
 		setdebugecho
+		RESULT=""
 		RESULT=`$SSHCOMMAND`
 		EC=$?
 		unsetdebugecho
-		debugecho $RESULT
+		debugecho "$RESULT"
 		if [ $EC == 0 ]; then
 			echo -n
 		elif [ $EC == 255 ]; then
@@ -295,7 +301,7 @@ while read line; do
 			continue
 		fi
 
-		echo -e "\e[32m*** SUCCESS:\e[0m Deployed ${DEPFILE##*/} on ${AMDADDR}."
+		echo -e "\e[32m*** SUCCESS:\e[0m ${STS} ${DEPFILE##*/} on ${AMDADDR}."
 		SUCCESS="${SUCCESS}${AMDADDR}\n"
 	fi
 done < <(echo -e "$AMDLIST")
@@ -307,9 +313,9 @@ echo -e "deploy_keys.sh complete"
 RET=0
 if [[ $FAIL == "" ]]; then FAIL="(none)"; else RET=1; fi
 if [[ $SUCCESS == "" ]]; then SUCCESS="(none)"; RET=1; fi
-echo -e "\e[32mSuccessfully deployed to:\e[0m"
+echo -e "\e[32mSuccessfully ${STS} on:\e[0m"
 echo -e "${SUCCESS}"
-echo -e "\e[31mFailed deployment to:\e[0m"
+echo -e "\e[31mFailed on:\e[0m"
 echo -e "${FAIL}"
 debugecho "RET: $RET"
 exit $RET
