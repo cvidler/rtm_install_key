@@ -7,7 +7,7 @@
 
 #script defaults
 DEPPATH=/tmp
-DEPSCRIPT=../rtm_install_key.sh
+DEPSCRIPT=rtm_install_key.sh
 DEPUSER=root
 DEPPASS=greenmouse
 DEPEXEC=1
