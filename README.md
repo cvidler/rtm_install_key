@@ -1,6 +1,61 @@
 # deploy_key
 Script to remotely deploy (or undeploy) private key files to one or more AMDs
 
+## Usage
+`deploy_key.sh [-h] [-R|-R] [-z -z] -u username [-p password|-i identfile -f privatekeyfile`
+
+Run directly on an AMD for local changes, or called automatically by `deploy_key.sh` script for remote usage.
+
+
+
+`-h` Display usage help. Optional.
+
+`-r` Restart rtm daemon/service for key change to take effect. Default.
+
+`-R` DO NOT restart rtm daemon/service.
+
+`-z -z` Remove and secure erase private key in `-k` parameter. Optional. Double -z required for safety.
+
+`-f privatekeyfile`	PEM format private key file to be deployed (or with -z undeployed). Required.
+
+`-u username` Username to log onto AMD, requires root/sudo access to modify private keys.
+
+`-i identfile` SSH private key to autologin to AMD as _username_.
+
+`-p password` Password for _username_.
+
+
+
+`-i` overrides `-p` as it is the more secure option.
+
+
+
+
+e.g.
+
+`./deploy_key.sh -a 192.168.93.121 -k mysitekey.key`
+
+Deploy mysitekey.key to AMD at 192.168.93.121, use default user/password combination.
+
+`./deploy_key.sh -a amdlist.txt -k mysitekey.key -u root -i sshkey.key`
+
+Deploy mysitekey.key to all AMDs in amdlist.txt using root and a SSH identity (key) file.
+
+`./deploy_key.sh -z -z -a amdlist.txt -k remove.key`
+
+Undeploy remove.key from all AMDs in the file amdlist.txt
+
+
+
+## Requirements
+
+* bash
+* ssh
+* sshpass
+* core-utils
+
+
+
 
 
 # rtm_install_key
@@ -8,13 +63,6 @@ Script to easily install new SSL keys on an Dynatrace DC RUM AMD
 
 Takes a private key file, checks it for validity (correct format), and then adds it to the AMDs key repository, sets appropriate file ownership and permissions, and updates the key list file.
 A restart is required for the new key to be used by the AMD.
-
-
-
-### Syntax
-[optional]	an optional parameter
-
-_value_		a required value for a parameter.
 
 
 
@@ -32,7 +80,7 @@ Installation NOT required if using `deploy_key.sh` script, it's handled automati
 
 
 ## Usage
-`rtm_install_key.sh [-h] [-c _rtmconfigfile_] [-R|-R] [-z] -k _privatekeyfile_`
+`rtm_install_key.sh [-h] [-c rtmconfigfile] [-R|-R] [-z] -k privatekeyfile`
 
 Run directly on an AMD for local changes, or called automatically by `deploy_key.sh` script for remote usage.
 
@@ -40,7 +88,7 @@ Run directly on an AMD for local changes, or called automatically by `deploy_key
 
 `-h` Display usage help. Optional.
 
-`-c _rtmconfigfile_` Location of rtm.config if not the default. Optional.
+`-c rtmconfigfile` Location of rtm.config if not the default. Optional.
 
 `-r` Restart rtm daemon/service for key change to take effect. Default.
 
@@ -48,7 +96,7 @@ Run directly on an AMD for local changes, or called automatically by `deploy_key
 
 `-z` Remove and secure erase private key in `-k` parameter. Optional.
 
-`-k _privatekeyfile_`	PEM format private key to be installed. Required.
+`-k privatekeyfile`	PEM format private key to be installed. Required.
 
 
 
@@ -83,11 +131,11 @@ If the key required conversion, the output will be a new key file in PEM format,
 
 
 ## Usage
-key_convert.sh [-h] -k _privatekeyfile_
+`key_convert.sh [-h] -k privatekeyfile`
 
--h Deplay usage help. Optional
+`-h` Deplay usage help. Optional
 
--k _privatekeyfile_ Private key to be validated/converted. Required
+`-k privatekeyfile` Private key to be validated/converted. Required
 
 e.g.
 
