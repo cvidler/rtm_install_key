@@ -7,6 +7,7 @@
 RTMCONFIG=/usr/adlex/config/rtm.config
 DEBUG=0
 RESTART=1
+LISTKEYS=0
 RTMTYPE=rtm
 
 # Script below - do not edit
@@ -14,7 +15,7 @@ set -e
 IFS='='
 
 OPTS=0
-while getopts ":dhc:k:rRsu" OPT; do
+while getopts ":dhc:k:rRszl" OPT; do
 	case $OPT in
 		c)
 			RTMCONFIG=$OPTARG
@@ -35,9 +36,11 @@ while getopts ":dhc:k:rRsu" OPT; do
 		s)
 			SCRIPTED=1
 			;;
-		u)
+		z)
 			UNDEPLOY=1
-			RESTART=0
+			;;
+		l)
+			LISTKEYS=1
 			;;
 		h)
 			;;
@@ -53,12 +56,13 @@ while getopts ":dhc:k:rRsu" OPT; do
 done
 
 if [ $OPTS -eq 0 ]; then
-	echo -e "*** INFO: Usage $0 [-h] [-c rtmconfig ] [-r|-R] [-u] -k keyfile"
+	echo -e "*** INFO: Usage $0 [-h] [-c rtmconfig ] [-r|-R] [-l] [-u] -k keyfile"
 	echo -e "-h			This help"
 	echo -e "-r			Restart rtm daemon. Default."
 	echo -e "-R			DO NOT restart rtm daemon."
 	echo -e "-c			location of rtm.config file. Default: $RTMCONFIG"
-	echo -e "-u			Undeploy and delete key."
+	echo -e "-l			List active keys post any changes."
+	echo -e "-z			Undeploy and delete key."
 	echo -e "-k keyfile	Private key to deploy. Required."
 	exit 0
 fi
@@ -205,15 +209,17 @@ fi
 
 if [ $RESTART -eq 1 ]; then
 	echo -e "Restarting rtm daemon $RTMTYPE."
-	sudo service $RTMTYPE restart
+	service $RTMTYPE restart
 	if [ $? -ne 0 ]; then
 		echo -e "*** WARNING: Couldn't restart daemon $RTMTYPE."
 		exit 1
 	fi
 fi
 
-echo -e "Current list of configured keys:"
-echo -e `cat $KEYLIST`
+if [ $LISTKEYS -eq 1 ]; then
+	echo -e "Current list of configured keys:"
+	echo -e `cat $KEYLIST`
+fi
 
 exit 0
 

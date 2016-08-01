@@ -51,6 +51,7 @@ function unsetdebugecho {
 #command line parameters
 #preset defaults
 UNDEPLOY=0
+HITS=0
 OPTS=0
 while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 	case $OPT in
@@ -99,9 +100,14 @@ while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 			RUNCMD=$OPTARG
 			;;
 		z)
-			OPTS=1
-			UNDEPLOY=1
-			RESTART=0
+			if [ $HITS -eq 1 ]; then
+				OPTS=1
+				HITS=3
+				UNDEPLOY=1
+				RESTART=0
+			else
+				HITS=$((HITS + 1))
+			fi
 			;;
 		\?)
 			OPTS=0 #show help
@@ -117,22 +123,8 @@ done
 #abort, showing help, if required options are unset
 if [ "$DEPFILE" == "" ]; then OPTS=0; fi
 if [ "$AMDADDR" == "" ]; then OPTS=0; fi
-
-#check if passed restart schedule is a valid format 'now' or a +m (number of minutes), or hh:mm (24hr clock)
-#if [[ $RESTARTSCHED =~ ^now$ ]]; then
-#	# 'now', OK
-#	echo -n
-#elif [[ $RESTARTSCHED =~ ^\+[0-9]+$ ]]; then
-#	# +m minutes, OK
-#	echo -n
-#elif [[ $RESTARTSCHED =~ ^(2[0-3]|1[0-9]|0?[0-9]):[0-5][0-9]$ ]]; then
-#	# hh:mm 24-hr clock, OK
-#	echo -n
-#else
-#	#unknown schedule, show help
-#	echo -e "\e[31m*** FATAL:\e[0m Restart schedule '$RESTARTSCHED' invalid."
-#	OPTS=0
-#fi
+#debugecho $HITS
+if [ $HITS -gt 0 ] && [ $HITS -lt 3 ]; then OPTS=0; fi
 
 #check for required script file
 if [ ! -r $DEPSCRIPT ]; then
@@ -141,7 +133,7 @@ fi
 
 
 if [ $OPTS -eq 0 ]; then
-	echo -e "*** INFO: Usage: $0 [-h] [-R|r] [-z] -a amdaddress|listfile -f privatekey [-u user] [-p password | -i identfile]"
+	echo -e "*** INFO: Usage: $0 [-h] [-R|r] [-z -z] -a amdaddress|listfile -f privatekey [-u user] [-p password | -i identfile]"
 	echo -e "-h 	This help"
 	echo -e "-a amdaddress|listfile "
 	echo -e "		address or if a file list one per line for AMDs to deploy to. Required."
@@ -156,7 +148,7 @@ if [ $OPTS -eq 0 ]; then
 	echo -e "-r 	Restart rtm process once copied. Default."
 	echo -e "-R 	DO NOT Restart rtm process once copied."
 	echo -e ""
-	echo -e "-z		undeploy/remove (and secure erase) private key named in '-f privatekey' parameter"
+	echo -e "-z -z	undeploy/remove (and secure erase) private key named in '-f privatekey' parameter. Requires double -z for safety."
 	echo -e ""
 	echo -e "-p and -i are exclusive, -i takes precedence as it is more secure."
 	exit 0
@@ -277,9 +269,9 @@ while read line; do
 	#build SSH command line to run copied file
 	if [ "$DEPEXEC" == "1" ]; then
 		if [ "$UNDEPLOY" == "1" ]; then
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s -u ${RESTART} -k ${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s -l -z ${RESTART} -k ${DEPFILE##*/}"
 		else
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} -s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
 		fi
 		debugecho "SSH command: $SSHCOMMAND"
 
