@@ -175,11 +175,20 @@ if [ -r $AMDADDR ]; then
 		if [[ $line == "#"* ]]; then continue; fi		#skip comments
 		if [[ $line == "" ]]; then continue; fi			# blank lines
 
+		if [[ $line =~ [aA],https?:\/\/.*@([a-zA-Z0-9.-]+):[0-9]+ ]]; then					# queryrumc.sh output file format
+			line=`expr match "$line" '[aA],https\?://.*@\([a-zA-A0-9.-]\+\):[0-9]\+'`		# extract name using regex
+			AMDLIST="$AMDLIST$line\n"
+			continue
+		elif [[ $line =~ [dD],https?:\/\/.*@([a-zA-Z0-9.-]+):[0-9]+ ]]; then
+			continue
+		fi
+
 		if [[ $line =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|[a-zA-Z0-9\.-]+|\[?[0-9a-fA-F:]+\]?)$ ]]; then		#rudimentary ip/fqdn/ipv6 test
 			AMDLIST="$AMDLIST$line\n"
-		else
-			debugecho "AMDLIST nonmatching line: ${line}", 2
+			continue
 		fi
+
+		debugecho "AMDLIST nonmatching line: ${line}"
 	done < <(cat $AMDADDR)
 	AMDLIST=${AMDLIST%%\\n}		#remove trailing comma
 else
