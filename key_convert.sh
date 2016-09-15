@@ -99,9 +99,9 @@ esac
 if [ $TYPE == jks ]; then
 	techo "Extracting key from Java Key Store format file"
 	techo "***WARNING: experimental support for JKS"
-	#techo "You may be prompted for the keystore password to properly extract keys."
 
 	KEYTOOL=`which keytool`
+	if [ $? -ne 0 ]; then techo "***FATAL Java keytool utility required for JKS extraction, not found. Aborting."; exit 1; fi
 	# get a list of private keys by alias, with blank password (no authenticity check, but user doesn't get prompted for anything)
 	RESULTS=$(echo -e '\n' | $KEYTOOL -list -storetype jks -keystore $KEYFILE 2> /dev/null | grep -A 1 "PrivateKeyEntry" )
 	NUMKEYS=0
@@ -132,7 +132,7 @@ if [ $TYPE == jks ]; then
 	debugecho "ALIASES: [${ALIASES[*]}]"
 	debugecho "SRCALIAS: [$SRCALIAS]"
 
-	#extract the key, because JKS sucks, convert to PKCS12 first, then let script continue on...
+	#extract the key, because keytool and JKS suck, convert to PKCS12 first, then let script continue on...
 	techo "Converting JKS to PKCS12"
 	echo -e "JKS keystore password: "
 	read -se PASSWORD

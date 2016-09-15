@@ -46,9 +46,9 @@ _Note:_ Double -z required for safety. This **permanently** erases the private k
 
 **Authentication**
 
-`-u username` Username to log onto AMD, requires root/sudo access to modify private keys.
+`-u username` User name to log onto AMD, requires root/sudo access to modify private keys.
 
-`-i identfile` SSH private key to autologin to AMD as _username_.
+`-i identfile` SSH private key to auto login to AMD as _username_.
 
 or
 
@@ -148,13 +148,16 @@ Script assumes rtm.config file is found in /usr/adlex/config/rtm.config, this is
 # key_convert
 Script to easily convert multiple key formats to PEM as required by Dynatrace DC RUM AMD.
 
-Takes a private key file in PEM, DER, or PKCS12 (P12, PFX) format. And checks the validity of the key, and converts it to a PEM format ready for the `rtm_install_key` script.
+Takes a private key file in PEM, DER, JKS or PKCS12 (P12, PFX) format. And checks the validity of the key, and converts it to a PEM format ready for the `rtm_install_key` script.
 
 If the provided key file is in the correct format and is valid, there'll be no output, simply a message confirming such.
 
 If the key required conversion, the output will be a new key file in PEM format, with message detailing the new name.
 
-*Note:* The key file name is expected to have a `.key` `.pem`, `.der`, `.pfx`, or `.p12` extension.
+_Note:_ The key file name is expected to have a `.key` `.pem`, `.der`, `.pfx`, `.p12`, or `.jks` extension.
+
+*New:* Experimental JKS (Java Key Store) format support. The script will walk you though the extraction and conversion of one private key from a JKS file. Can be repeated for multiple keys.
+
 
 
 ## Usage
@@ -174,4 +177,6 @@ e.g.
 * bash
 * openssl
 * core-utils
+* java keytool (for JKS support)
+
  
