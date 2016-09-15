@@ -18,7 +18,7 @@ while getopts ":k:hd" OPT; do
 		h)
 			;;
 		d)
-			DEBUG=1
+			DEBUG=$((DEBUG + 1))
 			;;
 		\?)
 			echo "*** FATAL: Invalid argument -$OPTARG."
@@ -37,10 +37,20 @@ if [ $OPTS -eq 0 ]; then
 fi
 
 
-# grab filename from parameter
-#KEYFILE=${1:-foo}
 
-# do some redimentary checks the file exists.
+function debugecho {
+	dbglevel=${2:-1}
+	if [ $DEBUG -ge $dbglevel ]; then techo "*** DEBUG[$dbglevel]: $1"; fi
+}
+
+function techo {
+	echo -e "[`date -u`]: $1"
+}
+
+
+
+
+# do some rudimentary checks the file exists.
 if [ $KEYFILE == foo ]; then
 	echo -e "***FATAL: Required filename parameter missing."
 	exit 1
@@ -58,7 +68,7 @@ echo -e "Reading key: $KEYFILE"
 # get extension
 KEYEXT=`basename $KEYFILE`
 KEYEXT=${KEYEXT##*.}
-#echo $KEYEXT
+debugecho "KEYEXT: [$KEYEXT]"
 
 case "$KEYEXT" in
 	key)
@@ -76,8 +86,11 @@ case "$KEYEXT" in
 	p12)
 		TYPE=p12
 		;;
+	jks)
+		TYPE=jks
+		;;
 	*)
-		echo -e "*** FATAL: Unable to determine key format of $KEYFILE. Script supports only PEM, DER and P12/PFX formats"
+		echo -e "*** FATAL: Unable to determine key format of $KEYFILE. Script supports only PEM, DER, JKS and P12/PFX formats"
 		exit 1
 		;;
 esac
@@ -85,8 +98,14 @@ esac
 
 #generate output file name
 OUTFILE=${KEYFILE%%.*}.key
-#echo $OUTFILE
+debugecho "OUTFILE: [$OUTFILE]"
 
+if [ $TYPE == jks ]; then
+	echo -e "Extracting key from Java Key Store format file"
+	echo -e "***WARNING: experimental support"
+
+	exit 1
+fi
 
 if [ $TYPE == p12 ]; then
 	# extract private key from pkcs12 format file
@@ -120,11 +139,16 @@ if [ $TYPE == der ]; then
 fi
 
 
+if [ -r $KEYFILE.crt ]; then
+	#if present, examin certificate details and extract expiration date.
+	echo -e "Checking for certificate $KEYFILE.crt"
+	EXPIRY=$(openssl x509 -text -in $KEYFILE.crt | grep "Not After : ")
+	debugecho "EXPIRY: [$EXPIRY]"
+fi
 
 echo -e "Validating key file: $KEYFILE"
 
 # check if it's valid using openssl
-#echo -e "$TYPE format detected, checking validity with OpenSSL"
 # check with a hopefully incorrect password being passed to see if it's encrypted or not, if it is the wrong password will fail, if not it'll work silently. In the odd case it is encrypted and we've got the right password it'll succeed silently, and be reported as unencrypted.
 openssl rsa -check -inform $TYPE -in $KEYFILE -noout -passin pass:dummy972345uofugsoyy8wtpassword 2> /dev/null
 RETURN=$?
@@ -138,7 +162,7 @@ if [ $RETURN -ne 0 ]; then
 		exit 1
 	fi
 	echo -e "$KEYFILE valid, but encrypted."
-	echo -n "Decrypt it? (yes|NO)"
+	echo -n "Decrypt it? (yes|NO) "
 	read YNO
 
 	case $YNO in
