@@ -52,17 +52,17 @@ function techo {
 
 # do some rudimentary checks the file exists.
 if [ $KEYFILE == foo ]; then
-	echo -e "***FATAL: Required filename parameter missing."
+	techo "***FATAL: Required filename parameter missing."
 	exit 1
 fi
 
 if [ ! -r $KEYFILE ]; then
-	echo -e "*** FATAL: Key file: $KEYFILE not readable."
+	techo "*** FATAL: Key file [$KEYFILE] not readable."
 	exit 1
 fi
 
 
-echo -e "Reading key: $KEYFILE"
+techo "Reading key: $KEYFILE"
 
 
 # get extension
@@ -96,24 +96,70 @@ case "$KEYEXT" in
 esac
 
 
+if [ $TYPE == jks ]; then
+	techo "Extracting key from Java Key Store format file"
+	techo "***WARNING: experimental support for JKS"
+	#techo "You may be prompted for the keystore password to properly extract keys."
+
+	KEYTOOL=`which keytool`
+	# get a list of private keys by alias, with blank password (no authenticity check, but user doesn't get prompted for anything)
+	RESULTS=$(echo -e '\n' | $KEYTOOL -list -storetype jks -keystore $KEYFILE 2> /dev/null | grep -A 1 "PrivateKeyEntry" )
+	NUMKEYS=0
+	NUMKEYS=$(echo $RESULTS | grep "PrivateKeyEntry" | wc -l )
+	if [ $NUMKEYS == 0 ]; then techo "No private keys found in JKS file [$KEYFILE], aborting."; exit 1; fi
+
+	#extract alias names
+	echo "Choose key to extract:"
+	echo "#, alias, creation date, certificate fingerprint"
+	IFS=','
+	KEYNUM=0
+	declare -a ALIASES
+	while read -r a c k; do
+		if [[ $a == "Certificate fingerprint"* ]]; then echo -e "${a#*:}"; continue; fi
+		KEYNUM=$((KEYNUM + 1))
+		echo -en "$KEYNUM: $a,$c,"
+		ALIASES[$KEYNUM]=$a
+	done < <(echo -e "$RESULTS")
+	echo -e "Extract key #: "
+	read -ei "1"
+	if [ $REPLY -ge 1 ] 2> /dev/null && [ $REPLY -le $KEYNUM ] 2> /dev/null ; then
+		techo "Extracting key [$REPLY]"
+	else
+		techo "Invalid key number entered, aborting."
+		exit 1
+	fi
+	SRCALIAS=${ALIASES[$REPLY]}
+	debugecho "ALIASES: [${ALIASES[*]}]"
+	debugecho "SRCALIAS: [$SRCALIAS]"
+
+	#extract the key, because JKS sucks, convert to PKCS12 first, then let script continue on...
+	techo "Converting JKS to PKCS12"
+	echo -e "JKS keystore password: "
+	read -se PASSWORD
+
+	#append alias name to file name for uniqueness
+	P12FILE=${KEYFILE%%.*}-$SRCALIAS.p12
+	keytool -importkeystore -srckeystore $KEYFILE -destkeystore $P12FILE -deststoretype PKCS12 -srcalias "$SRCALIAS" -srcstorepass "$PASSWORD" -deststorepass "$PASSWORD"
+	if [ $? -ne 0 ]; then techo "JKS conversion failed. Aborting."; exit 1; fi
+	PASSWORD=""
+
+	#change type and input name, so script can carry on as if a PKCS12 file was provided.
+	TYPE="p12"
+	KEYFILE=$P12FILE
+
+fi
+
 #generate output file name
 OUTFILE=${KEYFILE%%.*}.key
 debugecho "OUTFILE: [$OUTFILE]"
 
-if [ $TYPE == jks ]; then
-	echo -e "Extracting key from Java Key Store format file"
-	echo -e "***WARNING: experimental support"
-
-	exit 1
-fi
-
 if [ $TYPE == p12 ]; then
 	# extract private key from pkcs12 format file
-	echo -e "Extracting key from PKCS12 file"
+	techo "Extracting key from PKCS12 file"
 	openssl pkcs12 -in $KEYFILE -out $OUTFILE -nocerts -nodes 2> /dev/null
 	RESULT=$?
 	if [ $RESULT -ne 0 ]; then
-		echo -e "*** FATAL: Couldn't extract private key from PKCS12 file $KEYFILE"
+		techo "*** FATAL: Couldn't extract private key from PKCS12 file $KEYFILE"
 		exit 1
 	fi
 
@@ -129,7 +175,7 @@ if [ $TYPE == der ]; then
 	openssl rsa -inform $TYPE -outform PEM -in $KEYFILE -out $OUTFILE 2> /dev/null
 	RESULT=$?
 	if [ $RESULT -ne 0 ]; then
-		echo -e "*** FATAL: Couldn't convert DER to PEM"
+		techo "*** FATAL: Couldn't convert DER to PEM"
 		exit 1
 	fi
 
@@ -139,10 +185,10 @@ if [ $TYPE == der ]; then
 fi
 
 
-if [ -r $KEYFILE.crt ]; then
+if [ -r ${KEYFILE%%.*}.crt ]; then
 	#if present, examin certificate details and extract expiration date.
-	echo -e "Checking for certificate $KEYFILE.crt"
-	EXPIRY=$(openssl x509 -text -in $KEYFILE.crt | grep "Not After : ")
+	techo "Checking for certificate ${KEYFILE%%.*}.crt"
+	EXPIRY=$(openssl x509 -text -in ${KEYFILE%%.*}.crt | grep "Not After : ")
 	debugecho "EXPIRY: [$EXPIRY]"
 fi
 
@@ -154,14 +200,14 @@ openssl rsa -check -inform $TYPE -in $KEYFILE -noout -passin pass:dummy972345uof
 RETURN=$?
 if [ $RETURN -ne 0 ]; then
 	# check without a fake password, if it's encrypted user will be prompted, otherwise it's a invalid key/wrong format etc.
-	echo -e "Key may be encrypted."
+	techo "Key may be encrypted."
 	openssl rsa -check -inform $TYPE -in $KEYFILE -noout 2> /dev/null
 	RETURN=$?
 	if [ $RETURN -ne 0 ]; then
-		echo -e "*** FATAL: $KEYFILE invalid or wrong password."
+		techo "*** FATAL: $KEYFILE invalid (not RSA), wrong format (not PEM) or wrong password."
 		exit 1
 	fi
-	echo -e "$KEYFILE valid, but encrypted."
+	techo "$KEYFILE valid, but encrypted."
 	echo -n "Decrypt it? (yes|NO) "
 	read YNO
 
@@ -172,22 +218,22 @@ if [ $RETURN -ne 0 ]; then
 			openssl rsa -in $KEYFILE -outform PEM -out $OUTFILE -noout  
 			RETURN=$?
 			if [ $RETURN -ne 0 ]; then
-				echo -e "*** FATAL: Couldn't decrypt key. Wrong password?"
+				techo "*** FATAL: Couldn't decrypt key. Wrong password?"
 				exit 1	
 			fi
 			KEYFILE=$OUTFILE
-			echo -e "New key file: $KEYFILE ready to install to AMD, use rtm_install_key.sh"
+			techo "New key file: $KEYFILE ready to install to AMD, use rtm_install_key.sh"
 			exit 0
 			;;
 	
 		*)
-			echo -e "Not decrypting key, kpadmin will be needed to load the key into the AMD."
+			techo "Not decrypting key, kpadmin will be needed to load the key into the AMD."
 			exit 0
 			;;
 	esac
 fi
 
 
-echo -e "Complete. Saved: $KEYFILE"
+techo "Complete. Saved: $KEYFILE"
 exit 0
 
