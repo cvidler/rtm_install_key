@@ -29,16 +29,17 @@ set -e
 
 function debugecho {
 	LVL=${2:-1}
-	if test $DEBUG -ge $LVL ; then echo -e "\e[2m***DEBUG[${LVL}]:\e[0m $1"; fi
-	#echo -e "\e[2m***DEBUG[${LVL}]:\e[0m $1"
+	if test $DEBUG -ge $LVL ; then techo "\e[2m***DEBUG[${LVL}]:\e[0m $1"; fi
 }
 
 function fatalecho {
-	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[31m***FATAL: $@\e[0m" >&2; exit 1; fi
+	LVL=${2:-1}
+	if [[ $DEBUG -ne 0 ]]; then techo "\e[31m***FATAL: $1\e[0m" >&2; exit 1; fi
 }
 
 function warningecho {
-	if [[ $DEBUG -ne 0 ]]; then echo -e "\e[33m***WARNING: $@\e[0m"; fi
+	LVL=${2:-1}
+	if [[ $DEBUG -ne 0 ]]; then techo "\e[33m***WARNING: $1\e[0m"; fi
 }
 
 function setdebugecho {
@@ -47,6 +48,10 @@ function setdebugecho {
 
 function unsetdebugecho {
 	if [[ $DEBUG -ne 0 ]]; then echo -ne "\e[0m"; fi
+}
+
+function techo {
+	echo -e "[`date -u`]: $1"
 }
 
 
@@ -95,7 +100,7 @@ while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 				DEPPASS=""
 			else
 				OPTS=0
-				fatalecho "Identity file $OPTARG not present or inaccessible."
+				fatalecho "Identity file [$OPTARG] not present or inaccessible."
 			fi
 			;;
 		x)
@@ -114,11 +119,11 @@ while getopts ":hdrRf:a:u:p:i:x:z" OPT; do
 			;;
 		\?)
 			OPTS=0 #show help
-			warningecho "Invalid argument -$OPTARG."
+			warningecho "Invalid argument [-$OPTARG]."
 			;;
 		:)
 			OPTS=0 #show help
-			warningecho "argument -$OPTARG requires parameter."
+			warningecho "argument [-$OPTARG] requires parameter."
 			;;
 	esac
 done
@@ -131,7 +136,7 @@ if [ $HITS -gt 0 ] && [ $HITS -lt 3 ]; then OPTS=0; fi
 
 #check for required script file
 if [ ! -r $DEPSCRIPT ]; then
-	fatalecho "Required script '$DEPSCRIPT' not found or inaccessible."
+	fatalecho "Required script [$DEPSCRIPT] not found or inaccessible."
 fi
 
 
@@ -198,12 +203,10 @@ fi
 
 
 debugecho "Configuration:"
-debugecho "DEPUSER: '$DEPUSER', DEPPASS: '$DEPPASS', IDENT: '$IDENT', AMDADDR: '$AMDADDR', DEPSCRIPT: '$DEPSCRIPT' "
-debugecho "DEPPATH: '$DEPPATH', RESTART: '$RESTART', RESTARTSCHED: '$RESTARTSCHED', DEPEXEC: '$DEPEXEC' "
-debugecho "UNDEPLOY: '$UNDEPLOY', DEPFILE: '$DEPFILE'"
-debugecho "AMDLIST: '$AMDLIST' "
-
-#exit
+debugecho "DEPUSER: [$DEPUSER], DEPPASS: [$DEPPASS], IDENT: [$IDENT], AMDADDR: [$AMDADDR], DEPSCRIPT: [$DEPSCRIPT] "
+debugecho "DEPPATH: [$DEPPATH], RESTART: [$RESTART], RESTARTSCHED: [$RESTARTSCHED], DEPEXEC: [$DEPEXEC] "
+debugecho "UNDEPLOY: [$UNDEPLOY], DEPFILE: [$DEPFILE]"
+debugecho "AMDLIST: [$AMDLIST] "
 
 #get dependencies for config
 SCP=`which scp`
@@ -214,11 +217,11 @@ SSH=`which ssh`
 if [ $? -ne 0 ]; then
 	fatalecho "Dependency 'ssh' not found."
 fi
-debugecho "SCP: '$SCP', SSH: '$SSH' "
+debugecho "SCP: [$SCP], SSH: [$SSH] "
 
 
 #build configs
-if [ $DEBUG -ge 2 ]; then VERBOSE=" -v"; fi		#in debug mode add verbosity to SCP and SSH commands later on
+if [ $DEBUG -ge 2 ]; then VERBOSE=" -v"; fi		#in debug 3+ mode add verbosity to SCP and SSH commands later on
 
 #DEPPASS="$DEPPASS"
 if [ ! "$IDENT" == "" ]; then 
@@ -230,31 +233,27 @@ else
 	if [ $? -ne 0 ]; then
 		fatalecho "Dependency 'sshpass' not found."
 	fi
-	debugecho "SSHPASSE: $SSHPASSE", 2
+	debugecho "SSHPASSE: [$SSHPASSE]", 2
 	SSHPASS=${DEPPASS}
 	DEPPASS="${SSHPASSE} -e "
-	#debugecho "SSHPASS: $SSHPASS"
-	debugecho "DEPPASS: '$DEPPASS'", 2
+	debugecho "SSHPASS: [$SSHPASS]", 2
+	debugecho "DEPPASS: [$DEPPASS]", 2
 fi
-#AMDADDR="@$AMDADDR"
-#DEPPATH=":$DEPPATH" 
 
 if [[ $RESTART = 1 ]]; then RESTART="-r"; else RESTART="-R"; fi
 if [[ $DEBUG -ge 1 ]]; then DBG="-d "; else DBG=""; fi
 
 
-if [ ! -x $DEPSCRIPT ]; then chmod +x $DEPSCRIPT; debugecho "chmod +x to '$DEPSCRIPT'"; fi
+if [ ! -x $DEPSCRIPT ]; then chmod +x $DEPSCRIPT; debugecho "chmod +x to [$DEPSCRIPT]"; fi
 if [ $UNDEPLOY -eq 1 ]; then STS="Removed"; else STS="Deployed"; fi
 
 SUCCESS=""
 FAIL=""
 
-#exit
-
 while read line; do
 
 	AMDADDR=$line
-	echo -e "\e[34mdeploy_keys.sh\e[0m Deploying ${DEPFILE##*/} to ${AMDADDR}"
+	techo "\e[34mdeploy_keys.sh\e[0m Deploying ${DEPFILE##*/} to ${AMDADDR}"
 
 	#build SCP command line
 	if [ "$UNDEPLOY" == "1" ]; then
@@ -262,7 +261,7 @@ while read line; do
 	else
 		SCPCOMMAND="${DEPPASS}${SCP}${VERBOSE} -p${IDENT} $DEPSCRIPT ${DEPFILE} ${DEPUSER}@${AMDADDR}:${DEPPATH}"
 	fi
-	debugecho "SCP command: $SCPCOMMAND"
+	debugecho "SCPCOMMAND: [$SCPCOMMAND]"
 
 	#export envvar for sshpass
 	export SSHPASS=$SSHPASS
@@ -273,11 +272,11 @@ while read line; do
 	EC=$?
 	unsetdebugecho
 	if [[ $EC -ne 0 ]]; then
-		echo -e "\e[31m*** FATAL:\e[0m SCP to ${AMDADDR} failed."
+		techo "\e[31m*** FATAL:\e[0m SCP to [${AMDADDR}] failed."
 		FAIL="${FAIL}${AMDADDR}\n"
 		continue
 	fi
-	echo -e "\e[32m*** SUCCESS:\e[0m Copied ${DEPFILE##*/} to ${AMDADDR}."
+	techo "\e[32m*** SUCCESS:\e[0m Copied [${DEPFILE##*/}] to [${AMDADDR}]."
 	if [ $DEPEXEC == 0 ]; then SUCCESS="${SUCCESS}${AMDADDR}\n"; fi
 
 	#build SSH command line to run copied file
@@ -287,7 +286,7 @@ while read line; do
 		else
 			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
 		fi
-		debugecho "SSH command: $SSHCOMMAND"
+		debugecho "SSHCOMMAND: [$SSHCOMMAND]"
 
 		#run SSH command
 		setdebugecho
@@ -295,22 +294,22 @@ while read line; do
 		RESULT=`$SSHCOMMAND`
 		EC=$?
 		unsetdebugecho
-		debugecho "$RESULT"
+		debugecho "---ssh-result---\n$RESULT\n---ssh-result---" 2
 		if [ $EC == 0 ]; then
 			echo -n
 		elif [ $EC == 255 ]; then
-			echo -e "\e[31m*** FATAL:\e[0m SSH to ${AMDADDR} failed. EC=$EC"
+			techo "\e[31m*** FATAL:\e[0m SSH to [${AMDADDR}] failed. EC: [$EC]"
 			FAIL="${FAIL}${AMDADDR}\n"
 			continue
 		else
-			echo -e "\e[31m*** FATAL:\e[0m Remote command to ${AMDADDR} failed. EC=$EC"
-			echo -e "\e[31m*** DEBUG:\e[0m Command line: '${SSHCOMMAND}'"
-			echo -e "\e[31m*** DEBUG:\e[0m Result: '${RESULT}'"
+			techo "\e[31m*** FATAL:\e[0m Remote command to [${AMDADDR}] failed. EC: [$EC]"
+			techo "\e[31m*** DEBUG:\e[0m Command line: [${SSHCOMMAND}]"
+			techo "\e[31m*** DEBUG:\e[0m Result: [${RESULT}]"
 			FAIL="${FAIL}${AMDADDR}\n"
 			continue
 		fi
 
-		echo -e "\e[32m*** SUCCESS:\e[0m ${STS} ${DEPFILE##*/} on ${AMDADDR}."
+		techo "\e[32m*** SUCCESS:\e[0m ${STS} ${DEPFILE##*/} on ${AMDADDR}."
 		SUCCESS="${SUCCESS}${AMDADDR}\n"
 	fi
 done < <(echo -e "$AMDLIST")
@@ -318,14 +317,14 @@ done < <(echo -e "$AMDLIST")
 
 #finish
 echo
-echo -e "deploy_keys.sh complete"
+techo "deploy_keys.sh complete"
 RET=0
 if [[ $FAIL == "" ]]; then FAIL="(none)"; else RET=1; fi
 if [[ $SUCCESS == "" ]]; then SUCCESS="(none)"; RET=1; fi
-echo -e "\e[32mSuccessfully ${STS} on:\e[0m"
-echo -e "${SUCCESS}"
-echo -e "\e[31mFailed on:\e[0m"
-echo -e "${FAIL}"
-debugecho "RET: $RET"
+techo "\e[32mSuccessfully ${STS} on:\e[0m"
+techo "${SUCCESS}"
+techo "\e[31mFailed on:\e[0m"
+techo "${FAIL}"
+debugecho "RET: [$RET]"
 exit $RET
 
