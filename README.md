@@ -38,7 +38,7 @@ or
 
 **Undeploy Key**
 
-`-z -z` **Remove and secure erase private key** in `-k` parameter. Optional. 
+`-z -z` **Remove and secure erase private key** in `-f` parameter. Optional. 
 
 _Note:_ Double -z required for safety. This **permanently** erases the private key from the AMD/s.
 
