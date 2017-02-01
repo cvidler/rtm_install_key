@@ -60,15 +60,15 @@ _Note:_ `-i` overrides `-p` as it is the more secure option.
 
 **Examples**
 
-`./deploy_key.sh -a 192.168.93.121 -k mysitekey.key`
+`./deploy_key.sh -a 192.168.93.121 -f mysitekey.key`
 
 Deploy mysitekey.key to AMD at 192.168.93.121, use default user/password combination.
 
-`./deploy_key.sh -a amdlist.txt -k mysitekey.key -u root -i sshkey.key`
+`./deploy_key.sh -a amdlist.txt -f mysitekey.key -u root -i sshkey.key`
 
 Deploy mysitekey.key to all AMDs in amdlist.txt using root and a SSH identity (key) file.
 
-`./deploy_key.sh -z -z -a amdlist.txt -k removethis.key`
+`./deploy_key.sh -z -z -a amdlist.txt -f removethis.key`
 
 Undeploy removethis.key from all AMDs in the file amdlist.txt, list file is a simple text file one AMD (by ip of fqdn) per line.
 
