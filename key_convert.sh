@@ -192,9 +192,12 @@ if [ -r ${KEYFILE%%.*}.crt ]; then
 	techo "Checking for certificate ${KEYFILE%%.*}.crt"
 	EXPIRY=`openssl x509 -noout -enddate -in ${KEYFILE%%.*}.crt`
 	RESULT=$?
+	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE%%.*}.crt`
+	debugecho "CN: [$CN]"
 elif [ $TYPE == "PEM" ]; then
 	techo "Checking PEM $KEYFILE for included certificate"
 	EXPIRY=`openssl x509 -noout -enddate -in ${KEYFILE}`
+	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE%%.*}.crt`
 	RESULT=$?
 fi
 if [ $RESULT -eq 0 ]; then
@@ -204,11 +207,19 @@ if [ $RESULT -eq 0 ]; then
 
 	EXPDATE=`date -d "${EXPIRY##*=}" +%C%y%m%d`
 	debugecho "EXPDATE: [$EXPDATE]"
+	EXPDATE="EXP-$EXPDATE"
 
-	OUTFILE="${KEYFILE%%.*}-${EXPDATE}.${KEYFILE##*.}"
+	#grab CN
+	CN=${CN##*CN = }
+	debugecho "CN: [$CN]"
+	if [ ! "$CN" == "" ]; then
+		CN="CN-$CN"
+	else
+		CN="${KEYFILE%%.*}"
+	fi
+
+	OUTFILE="${EXPDATE}-${CN}.${KEYFILE##*.}"
 	debugecho "KEYFILE: [$KEYFILE] OUTFILE: [$OUTFILE]"
-	mv $KEYFILE $OUTFILE
-	KEYFILE=$OUTFILE
 fi
 
 
