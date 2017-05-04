@@ -23,7 +23,6 @@ DEPEXEC=1
 RESTART=1
 
 
-
 #script follows do not edit.
 set -e
 
@@ -154,6 +153,7 @@ if [ $OPTS -eq 0 ]; then
 	echo -e "-i identfile "
 	echo -e "		SSH private key identity file."
 	echo -e "-r 	Restart rtm process once copied. Default."
+	echo -e "		Live reload will be used if possible (ver 17+)."
 	echo -e "-R 	DO NOT Restart rtm process once copied."
 	echo -e ""
 	echo -e "-z -z	undeploy/remove (and secure erase) private key named in '-f privatekey' parameter. Requires double -z for safety."
@@ -282,9 +282,9 @@ while read line; do
 	#build SSH command line to run copied file
 	if [ "$DEPEXEC" == "1" ]; then
 		if [ "$UNDEPLOY" == "1" ]; then
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l -z ${RESTART} -k ${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l -z ${RESTART} -k ${DEPFILE##*/}"
 		else
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
 		fi
 		debugecho "SSHCOMMAND: [$SSHCOMMAND]"
 
