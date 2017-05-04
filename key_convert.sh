@@ -97,11 +97,16 @@ esac
 
 
 if [ $TYPE == jks ]; then
+	# open JKS, allow user to pick a private key (multiple are possible), convert that key to a PKCS12 file, and then use the PKCS12 methods below.
 	techo "Extracting key from Java Key Store format file"
 	techo "***WARNING: experimental support for JKS"
 
-	KEYTOOL=`which keytool`
-	if [ $? -ne 0 ]; then techo "***FATAL Java keytool utility required for JKS extraction, not found. Aborting."; exit 1; fi
+	if [ ! -x "/usr/lib/jvm/jre-openjdk/bin/keytool" ]; then
+		KEYTOOL=`which keytool`
+		if [ $? -ne 0 ]; then techo "***FATAL Java keytool utility required for JKS extraction, not found. Aborting."; exit 1; fi
+	else
+		KEYTOOL="/usr/lib/jvm/jre-openjdk/bin/keytool"
+	fi
 	# get a list of private keys by alias, with blank password (no authenticity check, but user doesn't get prompted for anything)
 	RESULTS=$(echo -e '\n' | $KEYTOOL -list -storetype jks -keystore $KEYFILE 2> /dev/null | grep -A 1 "PrivateKeyEntry" )
 	NUMKEYS=0
@@ -194,10 +199,10 @@ if [ -r ${KEYFILE%%.*}.crt ]; then
 	RESULT=$?
 	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE%%.*}.crt`
 	debugecho "CN: [$CN]"
-elif [ $TYPE == "PEM" ]; then
+elif [ $TYPE == "pem" ]; then
 	techo "Checking PEM $KEYFILE for included certificate"
 	EXPIRY=`openssl x509 -noout -enddate -in ${KEYFILE}`
-	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE%%.*}.crt`
+	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE}`
 	RESULT=$?
 fi
 if [ $RESULT -eq 0 ]; then
