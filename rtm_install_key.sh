@@ -9,11 +9,11 @@ DEBUG=0
 RESTART=1
 LISTKEYS=0
 RTMTYPE=rtm
+SCRIPTED=0
 
-
-# command line to live reload keys on v17+ 
-LIVERELOAD_CMD="sudo rcmd ssldecr keys reload"
-GETVERSION_CMD="sudo rcmd show version | grep -E 'rtmhs\.17\.' | wc -l"
+#default ownership info
+RTMUSER=compuware
+RTMGRP=adlex
 
 # Script below - do not edit
 set -e
@@ -113,7 +113,10 @@ KEYLISTNAME=$KEYLIST
 KEYLIST=$KEYDIR$KEYLIST
 debugecho "KEYLIST: '$KEYLIST'"
 
+set +e
 RTMTEST=`sudo cat $RTMCONFIG | grep rtm.type`
+if [ $? -ne 0 ]; then RTMTEST=""; fi
+set -e
 debugecho "RTMTEST: $RTMTEST", 2
 RTMTEST=${RTMTEST##*=}
 debugecho "RTMTEST: $RTMTEST", 2
@@ -145,6 +148,26 @@ fi
 if sudo test ! -w $KEYLIST ; then
 	fatalecho "Can't write to $KEYLIST"
 fi
+
+# get ownership user/group from service config
+if [ $RTMTYPE == 'rtmhs' ]; then
+	# service ownership details found in systemd service definition
+	OWNSHIP=`grep -e 'User' -e 'Group' /usr/lib/systemd/system/rtmhs.service`
+	debugecho "OWNSHIP: [$OWNSHIP]", 2
+	RTMUSER=${OWNSHIP#*User}
+	RTMUSER=${RTMUSER#=}
+	RTMUSER=${RTMUSER%Group*}
+	RTMUSER=${RTMUSER//$'\n'}
+	RTMGRP=${OWNSHIP#*Group=}
+else
+	# service ownership found in custom config file /etc/compuware/userdata
+	OWNSHIP=`cat /etc/compuware/userdata`
+	debugecho "OWNSHIP: [$OWNSHIP]", 2
+	RTMUSER=${OWNSHIP%:*}
+	RTMGRP=${OWNSHIP#*:}
+fi
+debugecho "RTMUSER: [$RTMUSER]"
+debugecho "RTMGRP: [$RTMGRP]"
 
 # check if passed key file is readable
 if [ ! -r $KEYFILE ]; then
@@ -200,6 +223,12 @@ if [ ! $UNDEPLOY -eq 1 ]; then
 		exit 1
 	fi
 
+	# set ownership
+	sudo chown $RTMUSER:$RTMGRP $KEYDIR$BASENAME
+	if [ $? -ne 0 ]; then
+		warningecho "Couldn't set ownership on new key $KEYDIR$BASENAME."
+	fi
+
 	# set permissions
 	sudo chmod 600 $KEYDIR$BASENAME
 	if [ $? -ne 0 ]; then
@@ -236,13 +265,11 @@ else
 	echo -e "Key $KEYFILE removed and $KEYLIST updated."	
 fi
 
-echo -e "Change takes effect at next $RTMTYPE daemon restart."
-
 debugecho "RESTART: '$RESTART'"
 if [ $RESTART -eq 1 ]; then
 
 	#test version number for live reload
-	IS17=`$GETVERSION_CMD`
+	IS17=`rcmd show version | grep -E 'rtmhs\.17\.' | wc -l`
 
 	if [ ! $IS17 = 1 ]; then
 		echo -e "Restarting rtm daemon $RTMTYPE."
@@ -252,9 +279,11 @@ if [ $RESTART -eq 1 ]; then
 			exit 1
 		fi
 	else
-		echo -e "Reloading Keys"
-		$LIVERELOAD_CMD
+		echo -e "Reloading keys"
+		rcmd ssldecr keys reload
 	fi
+else
+	echo -e "Key changes takes effect at next $RTMTYPE daemon restart."
 fi
 
 if [ $LISTKEYS -eq 1 ] && sudo test -r $KEYLIST ; then

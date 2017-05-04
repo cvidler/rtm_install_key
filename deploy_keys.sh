@@ -282,9 +282,9 @@ while read line; do
 	#build SSH command line to run copied file
 	if [ "$DEPEXEC" == "1" ]; then
 		if [ "$UNDEPLOY" == "1" ]; then
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l -z ${RESTART} -k ${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l -z ${RESTART} -k ${DEPFILE##*/}"
 		else
-			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt ${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
+			SSHCOMMAND="${DEPPASS}${SSH}${VERBOSE} -tt${IDENT} ${DEPUSER}@${AMDADDR} ${DEPPATH}/${DEPSCRIPT##*/} ${DBG}-s -l ${RESTART} -k ${DEPPATH}/${DEPFILE##*/}"
 		fi
 		debugecho "SSHCOMMAND: [$SSHCOMMAND]"
 
