@@ -97,11 +97,16 @@ esac
 
 
 if [ $TYPE == jks ]; then
+	# open JKS, allow user to pick a private key (multiple are possible), convert that key to a PKCS12 file, and then use the PKCS12 methods below.
 	techo "Extracting key from Java Key Store format file"
 	techo "***WARNING: experimental support for JKS"
 
-	KEYTOOL=`which keytool`
-	if [ $? -ne 0 ]; then techo "***FATAL Java keytool utility required for JKS extraction, not found. Aborting."; exit 1; fi
+	if [ ! -x "/usr/lib/jvm/jre-openjdk/bin/keytool" ]; then
+		KEYTOOL=`which keytool`
+		if [ $? -ne 0 ]; then techo "***FATAL Java keytool utility required for JKS extraction, not found. Aborting."; exit 1; fi
+	else
+		KEYTOOL="/usr/lib/jvm/jre-openjdk/bin/keytool"
+	fi
 	# get a list of private keys by alias, with blank password (no authenticity check, but user doesn't get prompted for anything)
 	RESULTS=$(echo -e '\n' | $KEYTOOL -list -storetype jks -keystore $KEYFILE 2> /dev/null | grep -A 1 "PrivateKeyEntry" )
 	NUMKEYS=0
@@ -156,7 +161,8 @@ debugecho "OUTFILE: [$OUTFILE]"
 if [ $TYPE == p12 ]; then
 	# extract private key from pkcs12 format file
 	techo "Extracting key from PKCS12 file"
-	openssl pkcs12 -in $KEYFILE -out $OUTFILE -nocerts -nodes 2> /dev/null
+	#openssl pkcs12 -in $KEYFILE -out $OUTFILE -nocerts -nodes 2> /dev/null
+	openssl pkcs12 -in $KEYFILE -out $OUTFILE -clcerts -nodes 2> /dev/null
 	RESULT=$?
 	if [ $RESULT -ne 0 ]; then
 		techo "*** FATAL: Couldn't extract private key from PKCS12 file $KEYFILE"
@@ -185,14 +191,45 @@ if [ $TYPE == der ]; then
 fi
 
 
+EXPIRY=""
+#if present, examine certificate details and extract expiration date.
 if [ -r ${KEYFILE%%.*}.crt ]; then
-	#if present, examin certificate details and extract expiration date.
 	techo "Checking for certificate ${KEYFILE%%.*}.crt"
-	EXPIRY=$(openssl x509 -text -in ${KEYFILE%%.*}.crt | grep "Not After : ")
+	EXPIRY=`openssl x509 -noout -enddate -in ${KEYFILE%%.*}.crt`
+	RESULT=$?
+	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE%%.*}.crt`
+	debugecho "CN: [$CN]"
+elif [ $TYPE == "pem" ]; then
+	techo "Checking PEM $KEYFILE for included certificate"
+	EXPIRY=`openssl x509 -noout -enddate -in ${KEYFILE}`
+	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE}`
+	RESULT=$?
+fi
+if [ $RESULT -eq 0 ]; then
+	#have an expiry date to use
+	EXPIRY=${EXPIRY%%.*\=}
 	debugecho "EXPIRY: [$EXPIRY]"
+
+	EXPDATE=`date -d "${EXPIRY##*=}" +%C%y%m%d`
+	debugecho "EXPDATE: [$EXPDATE]"
+	EXPDATE="EXP-$EXPDATE"
+
+	#grab CN
+	CN=${CN##*CN = }
+	debugecho "CN: [$CN]"
+	if [ ! "$CN" == "" ]; then
+		CN="CN-$CN"
+	else
+		CN="${KEYFILE%%.*}"
+	fi
+
+	OUTFILE="${EXPDATE}-${CN}.${KEYFILE##*.}"
+	debugecho "KEYFILE: [$KEYFILE] OUTFILE: [$OUTFILE]"
 fi
 
-echo -e "Validating key file: $KEYFILE"
+
+
+techo "Validating key file: $KEYFILE"
 
 # check if it's valid using openssl
 # check with a hopefully incorrect password being passed to see if it's encrypted or not, if it is the wrong password will fail, if not it'll work silently. In the odd case it is encrypted and we've got the right password it'll succeed silently, and be reported as unencrypted.
