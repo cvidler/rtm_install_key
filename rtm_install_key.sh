@@ -10,6 +10,11 @@ RESTART=1
 LISTKEYS=0
 RTMTYPE=rtm
 
+
+# command line to live reload keys on v17+ 
+LIVERELOAD_CMD="sudo rcmd ssldecr keys reload"
+GETVERSION_CMD="sudo rcmd show version | grep -E 'rtmhs\.17\.' | wc -l"
+
 # Script below - do not edit
 set -e
 IFS='='
@@ -235,11 +240,20 @@ echo -e "Change takes effect at next $RTMTYPE daemon restart."
 
 debugecho "RESTART: '$RESTART'"
 if [ $RESTART -eq 1 ]; then
-	echo -e "Restarting rtm daemon $RTMTYPE."
-	sudo service $RTMTYPE restart
-	if [ $? -ne 0 ]; then
-		warningecho "Couldn't restart daemon $RTMTYPE."
-		exit 1
+
+	#test version number for live reload
+	IS17=`$GETVERSION_CMD`
+
+	if [ ! $IS17 = 1 ]; then
+		echo -e "Restarting rtm daemon $RTMTYPE."
+		sudo service $RTMTYPE restart
+		if [ $? -ne 0 ]; then
+			warningecho "Couldn't restart daemon $RTMTYPE."
+			exit 1
+		fi
+	else
+		echo -e "Reloading Keys"
+		$LIVERELOAD_CMD
 	fi
 fi
 
