@@ -252,7 +252,7 @@ if [ $RETURN -ne 0 ]; then
 		[yY] | [yY][Ee][Ss] )
 			# output a decrypted key
 			OUTFILE=${KEYFILE%%.*}_decr.key
-			openssl rsa -in $KEYFILE -outform PEM -out $OUTFILE -noout  
+			openssl rsa -in $KEYFILE -outform PEM -out $OUTFILE 
 			RETURN=$?
 			if [ $RETURN -ne 0 ]; then
 				techo "*** FATAL: Couldn't decrypt key. Wrong password?"
