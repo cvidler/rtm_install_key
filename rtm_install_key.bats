@@ -4,21 +4,6 @@
 # Chris Vidler
 
 
-setup() {
-
-  #create temp directory and populate with temp key material
-  TMPDIR=`mktemp -d`
-
-  openssl genrsa -out "$TMPDIR/testkey.key"
-
-}
-
-teardown() {
-  # cleanup temp directory
-  rm -rf "$TMPDIR"
-}
-
-
 
 
 ##
@@ -87,11 +72,70 @@ teardown() {
   [[ "$output" =~ "$expected" ]]
 } 
 
+@test "key_convert.sh: test/convert non-existing key" {
+  run ./key_convert.sh -k "invalidkeyname.key"
+  echo -e "$output"
+  [ $status -eq 1 ]
+  expected="not readable."
+  [[ "$output" =~ "$expected" ]]
+} 
+
 @test "key_convert.sh: test/convert PEM format key" {
+  # build a new valid key to test
+  TMPDIR=`mktemp -d`
+  openssl genrsa -out "$TMPDIR/testkey.key"
+
   run ./key_convert.sh -k "$TMPDIR/testkey.key"
+  echo -e "$output"
   [ $status -eq 0 ]
   expected="Complete. Saved: "
   [[ "$output" =~ "$expected" ]]
+
+  rm -rf "$TMPDIR"
+} 
+
+@test "key_convert.sh: test invalid/corrupt PEM format key" {
+  # build a new valid key to test
+  TMPDIR=`mktemp -d`
+  echo "not a valid file" > "$TMPDIR/testkey.key"
+
+  run ./key_convert.sh -k "$TMPDIR/testkey.key"
+  echo -e "$output"
+  [ $status -eq 1 ]
+  expected="invalid (not RSA), wrong format (not PEM) or wrong password."
+  [[ "$output" =~ "$expected" ]]
+
+  rm -rf "$TMPDIR"
+} 
+
+@test "key_convert.sh: test/convert DER format key" {
+  # build a new valid key to test
+  TMPDIR=`mktemp -d`
+  openssl genrsa | openssl rsa -outform DER -out "$TMPDIR/testkey.der"
+
+  run ./key_convert.sh -k "$TMPDIR/testkey.der"
+  echo -e "$output"
+  [ $status -eq 0 ]
+  expected="Complete. Saved: "
+  [[ "$output" =~ "$expected" ]]
+  [ -r /tmp/tmp.key ]
+
+  rm -f /tmp/tmp.key
+  rm -rf "$TMPDIR"
+} 
+
+@test "key_convert.sh: test invalid/corrupt DER format key" {
+  # build a new valid key to test
+  TMPDIR=`mktemp -d`
+  echo "not a valid file" > "$TMPDIR/testkey.der"
+
+  run ./key_convert.sh -k "$TMPDIR/testkey.der"
+  echo -e "$output"
+  [ $status -eq 1 ]
+  expected="*** FATAL: Couldn't convert DER to PEM"
+  [[ "$output" =~ "$expected" ]]
+
+  rm -rf "$TMPDIR"
 } 
 
 
