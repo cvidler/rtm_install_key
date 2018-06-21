@@ -37,8 +37,7 @@ function fatalecho {
 }
 
 function warningecho {
-	LVL=${2:-1}
-	if [[ $DEBUG -ne 0 ]]; then techo "\e[33m***WARNING: $1\e[0m"; fi
+	techo "\e[33m***WARNING: $1\e[0m"
 }
 
 function setdebugecho {
