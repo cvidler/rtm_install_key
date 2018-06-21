@@ -55,7 +55,7 @@
 @test "key_convert.sh: no parameter test" {
   run ./key_convert.sh
   [ $status -eq 0 ]
-  [ "${lines[0]}" == "*** INFO: Usage: ./key_convert.sh [-h] -k keyfile" ]
+  [ "${lines[0]}" == "*** INFO: Usage: ./key_convert.sh [-h] [-s] -k keyfile" ]
 } 
 
 @test "key_convert.sh: invalid parameter test" {
@@ -133,6 +133,38 @@
   echo -e "$output"
   [ $status -eq 1 ]
   expected="*** FATAL: Couldn't convert DER to PEM"
+  [[ "$output" =~ "$expected" ]]
+
+  rm -rf "$TMPDIR"
+} 
+
+@test "key_convert.sh: test/convert PKCS12 format key" {
+  # build a new valid key to test
+  TMPDIR=`mktemp -d`
+  openssl req -x509 -newkey rsa:2048 -keyout "$TMPDIR/testkey.key" -out "$TMPDIR/testkey.crt" -days 5 -nodes < <(echo -e "\n\n\n\n\n\n\n\n\n")
+  openssl pkcs12 -export -out "$TMPDIR/testkey.p12" -inkey "$TMPDIR/testkey.key" -in "$TMPDIR/testkey.crt" -password stdin < <(echo -e "\n\n")
+  [ -r "$TMPDIR/testkey.p12" ]
+
+  run ./key_convert.sh -s -k "$TMPDIR/testkey.p12" < <(echo -e "\n")
+  echo -e "$output"
+  [ $status -eq 0 ]
+  expected="Complete. Saved: "
+  [[ "$output" =~ "$expected" ]]
+  [ -r /tmp/tmp.key ]
+
+  rm -f /tmp/tmp.key
+  rm -rf "$TMPDIR"
+} 
+
+@test "key_convert.sh: test invalid/corrupt PKCS12 format key" {
+  # build a new valid key to test
+  TMPDIR=`mktemp -d`
+  echo "not a valid file" > "$TMPDIR/testkey.p12"
+
+  run ./key_convert.sh -k "$TMPDIR/testkey.p12"
+  echo -e "$output"
+  [ $status -eq 1 ]
+  expected="*** FATAL: Couldn't extract private key from PKCS12 file"
   [[ "$output" =~ "$expected" ]]
 
   rm -rf "$TMPDIR"

@@ -9,7 +9,7 @@ DEBUG=0
 # script below do not edit
 
 OPTS=0
-while getopts ":k:hd" OPT; do
+while getopts ":k:hds" OPT; do
 	case $OPT in
 		k)
 			KEYFILE=$OPTARG
@@ -19,6 +19,9 @@ while getopts ":k:hd" OPT; do
 			;;
 		d)
 			DEBUG=$((DEBUG + 1))
+			;;
+		s)
+			STDIN=" -password stdin"
 			;;
 		\?)
 			echo "*** FATAL: Invalid argument -$OPTARG."
@@ -32,7 +35,9 @@ while getopts ":k:hd" OPT; do
 done
 
 if [ $OPTS -eq 0 ]; then
-	echo "*** INFO: Usage: $0 [-h] -k keyfile"
+	echo "*** INFO: Usage: $0 [-h] [-s] -k keyfile"
+    echo "-h  help"
+    echo "-s  Accept openssl passwords from stdin (for scripted execution)"
 	exit 0
 fi
 
@@ -162,7 +167,7 @@ if [ $TYPE == p12 ]; then
 	# extract private key from pkcs12 format file
 	techo "Extracting key from PKCS12 file"
 	#openssl pkcs12 -in $KEYFILE -out $OUTFILE -nocerts -nodes 2> /dev/null
-	openssl pkcs12 -in $KEYFILE -out $OUTFILE -clcerts -nodes 2> /dev/null
+	openssl pkcs12 -in $KEYFILE -out $OUTFILE -clcerts -nodes $STDIN 2> /dev/null
 	RESULT=$?
 	if [ $RESULT -ne 0 ]; then
 		techo "*** FATAL: Couldn't extract private key from PKCS12 file $KEYFILE"
