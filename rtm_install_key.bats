@@ -170,6 +170,24 @@
   rm -rf "$TMPDIR"
 } 
 
+@test "key_convert.sh: test/convert JKS format key" {
+ skip "not yet implemented"
+}
+
+@test "key_convert.sh: test invalid/corrupt JKS format key" {
+ skip "not yet implemented"
+}
+
+@test "key_convert.sh: test invalid file type" {
+  TMPDIR=`mktemp -d`
+  echo "not a key" > "$TMPDIR/notakey.txt"
+  run ./key_convert.sh -k "$TMPDIR/notakey.txt"
+  echo $output
+  [ $status -eq 1 ]
+  expected="*** FATAL: Unable to determine key format of"
+  [[ "$output" =~ "$expected" ]]
+  rm -rf "$TMPDIR"
+}
 
 
 ##
