@@ -146,9 +146,9 @@ if [ $OPTS -eq 0 ]; then
 	echo -e "-f privatekey "
 	echo -e "		Full path to privatekey file. Required."
 	echo -e "-u user "
-	echo -e "		User with root or sudo rights to copy and execute key update script. Default root."
+	echo -e "		User with root or sudo rights to copy and execute key update script. Default $DEPUSER."
 	echo -e "-p password "
-	echo -e "		Password for user. Default greenmouse."
+	echo -e "		Password for user. Default $DEPPASS."
 	echo -e "-i identfile "
 	echo -e "		SSH private key identity file."
 	echo -e "-r 	Restart rtm process once copied. Default."
@@ -252,7 +252,7 @@ FAIL=""
 while read line; do
 
 	AMDADDR=$line
-	techo "\e[34mdeploy_keys.sh\e[0m Deploying ${DEPFILE##*/} to ${AMDADDR}"
+	techo "\e[34m$0\e[0m Deploying ${DEPFILE##*/} to ${AMDADDR}"
 
 	#build SCP command line
 	if [ "$UNDEPLOY" == "1" ]; then
