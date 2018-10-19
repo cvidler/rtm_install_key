@@ -148,7 +148,7 @@ if [ $TYPE == jks ]; then
 	read -se PASSWORD
 
 	#append alias name to file name for uniqueness
-	P12FILE=${KEYFILE%%.*}-$SRCALIAS.p12
+	P12FILE=${KEYFILE%.*}-$SRCALIAS.p12
 	keytool -importkeystore -srckeystore $KEYFILE -destkeystore $P12FILE -deststoretype PKCS12 -srcalias "$SRCALIAS" -srcstorepass "$PASSWORD" -deststorepass "$PASSWORD"
 	if [ $? -ne 0 ]; then techo "JKS conversion failed. Aborting."; exit 1; fi
 	PASSWORD=""
@@ -160,7 +160,7 @@ if [ $TYPE == jks ]; then
 fi
 
 #generate output file name
-OUTFILE=${KEYFILE%%.*}.key
+OUTFILE=${KEYFILE%.*}_decr.key
 debugecho "OUTFILE: [$OUTFILE]"
 
 if [ $TYPE == p12 ]; then
@@ -198,11 +198,11 @@ fi
 
 EXPIRY=""
 #if present, examine certificate details and extract expiration date.
-if [ -r ${KEYFILE%%.*}.crt ]; then
-	techo "Checking for certificate ${KEYFILE%%.*}.crt"
-	EXPIRY=`openssl x509 -noout -enddate -in ${KEYFILE%%.*}.crt`
+if [ -r ${KEYFILE%.*}.crt ]; then
+	techo "Checking for certificate ${KEYFILE%.*}.crt"
+	EXPIRY=`openssl x509 -noout -enddate -in ${KEYFILE%.*}.crt`
 	RESULT=$?
-	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE%%.*}.crt`
+	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE%.*}.crt`
 	debugecho "CN: [$CN]"
 elif [ $TYPE == "pem" ]; then
 	techo "Checking PEM $KEYFILE for included certificate"
@@ -210,6 +210,7 @@ elif [ $TYPE == "pem" ]; then
 	CN=`openssl x509 -noout -subject -nameopt oneline -in ${KEYFILE}`
 	RESULT=$?
 fi
+
 if [ $RESULT -eq 0 ]; then
 	#have an expiry date to use
 	EXPIRY=${EXPIRY%%.*\=}
@@ -225,10 +226,10 @@ if [ $RESULT -eq 0 ]; then
 	if [ ! "$CN" == "" ]; then
 		CN="CN-$CN"
 	else
-		CN="${KEYFILE%%.*}"
+		CN="${KEYFILE%.*}"
 	fi
 
-	OUTFILE="${EXPDATE}-${CN}.${KEYFILE##*.}"
+	OUTFILE="${EXPDATE}-${CN}.${KEYFILE%.*}_decr.key"
 	debugecho "KEYFILE: [$KEYFILE] OUTFILE: [$OUTFILE]"
 fi
 
@@ -256,7 +257,7 @@ if [ $RETURN -ne 0 ]; then
 	case $YNO in
 		[yY] | [yY][Ee][Ss] )
 			# output a decrypted key
-			OUTFILE=${KEYFILE%%.*}_decr.key
+			OUTFILE=${KEYFILE%.*}_decr.key
 			openssl rsa -in $KEYFILE -outform PEM -out $OUTFILE 
 			RETURN=$?
 			if [ $RETURN -ne 0 ]; then
